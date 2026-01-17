@@ -88,6 +88,23 @@ def evaluate(model, dataloader, device):
 
 def compute_metrics(predictions, labels, metrics_calculator):
     """Compute clustering metrics"""
+    # predictions: (N,) image-level predictions
+    # labels: (N, H, W) pixel-level labels
+    
+    # Convert pixel-level labels to image-level by majority voting
+    if labels.ndim == 3:
+        image_labels = []
+        for i in range(labels.shape[0]):
+            label_img = labels[i].flatten()
+            valid_pixels = label_img[label_img < 7]
+            if len(valid_pixels) > 0:
+                unique, counts = np.unique(valid_pixels, return_counts=True)
+                majority_label = unique[np.argmax(counts)]
+            else:
+                majority_label = 0
+            image_labels.append(majority_label)
+        labels = np.array(image_labels)
+    
     # Flatten if needed
     if predictions.ndim > 1:
         predictions = predictions.flatten()

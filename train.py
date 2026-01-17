@@ -155,17 +155,20 @@ def train_one_epoch(
         
         # Forward pass with mixed precision
         with autocast(enabled=config['training'].get('mixed_precision', True)):
-            # Query and key forward
+            # Query and key forward (for MoCo contrastive)
             logits, labels, p1 = model(opt_1, sar_1, opt_2, sar_2)
             
-            # Get features for loss computation
-            with torch.no_grad():
-                _, p2, features = model.encoder_q(opt_2, sar_2, return_features=True)
+            # Get projected features for view 1
+            z1, _, features = model.encoder_q(opt_1, sar_1, return_features=True)
             
-            # Compute loss
+            # Get projected features for view 2
+            with torch.no_grad():
+                z2, p2, _ = model.encoder_q(opt_2, sar_2, return_features=True)
+            
+            # Compute loss (z1, z2 are projected features with shape (B, dim))
             loss_info = criterion(
-                logits[:, 0:1],  # positive logits
-                logits[:, 1:],   # negative logits
+                z1,
+                z2,
                 features['optical'],
                 features['sar'],
                 p1,
